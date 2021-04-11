@@ -1,39 +1,61 @@
+// Lebedev Evgenii 2021 technopark-task-3
+
 pragma solidity ^0.6.12;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-abstract contract GovernanceToken is IERC20, Ownable {
-    
+contract GovernanceToken is IERC20, Ownable {
     using SafeMath for uint256;
 
-    event MintTokens(address receiver, uint256 value);
-    event TransferTokens(address from, address to, uint256 value);
-    event NewParticipant(address new_participant);  // добавление нового владельца governance-токена
-    event EtherDepositFromParticipant(address participant, uint256 value);  // владелец governance-токена докупает токен за Ether
-    event EtherDepositFromNonParticipant(address sender, uint256 value);  // стороннее лицо кладет Ether в контракт
-
+    /// @notice EIP-20 token name for this token
     string public name = "LebedevToken";
+
+    /// @notice EIP-20 token symbol for this token
     string public symbol = "LEB";
+
+    /// @notice EIP-20 token decimals for this token
     uint8 public decimals = 18;
-    uint256 public leftTokens = 100000e18; // 100 thousands tokens
+
+    /// @notice Total number of tokens in circulation
+    uint256 public override totalSupply = 100000e18;  // 100000 thousands tokens
+
+    /// @notice Total balances of tokens among the owners
     uint256 public totalBalances = 0;
 
-    /// @dev Владельцы GovernanceToken
+
+    /// @dev Owners of GovernanceToken
     address[] public owners;
     mapping (address => bool) public isOwner;
 
-    /// @dev Балансы владельцев GovernanceToken
-    mapping(address => uint256) balances; 
+    /// @dev Allowance amounts on behalf of others
+    mapping(address => mapping(address => uint256)) internal allowances;
 
-    /*
-     *  Modifiers
-     */
-    
+    /// @dev Owners' balances of GovernanceToken
+    mapping(address => uint256) balances;
 
-    /// @dev Указание участников governance-token
-    /// @param _owners Участники, между которыми будут распределяться доли при переводе эфира сторонним лицом в контракт
+
+    /// @notice The standard EIP-20 transfer event
+    event Transfer(address indexed from, address indexed to, uint256 amount);
+
+    /// @notice The standard EIP-20 approval event
+    event Approval(address indexed owner, address indexed spender, uint256 amount);
+
+    /// @notice An event thats emitted when owner receives tokens
+    event MintTokens(address receiver, uint256 value);
+
+    /// @notice An event of adding the new owner of tokens
+    event NewParticipant(address new_participant);
+
+    /// @notice An event thats emitted when owner of tokens deposits ether
+    event EtherDepositFromParticipant(address participant, uint256 value);
+
+    /// @notice An event thats emitted when non-owner deposits ether
+    event EtherDepositFromNonParticipant(address sender, uint256 value);  // стороннее лицо кладет Ether в контракт 
+
+    /// @dev Creating owners of GovernanceToken
+    /// @param _owners Owners of GovernanceToken
     constructor(address[] memory _owners) public {
         for (uint i=0; i<_owners.length; i++) {
             require(_owners[i] != address(0));
@@ -43,17 +65,72 @@ abstract contract GovernanceToken is IERC20, Ownable {
         }
     }
 
-    /// @dev Добавление эфира в контракт
-    function Pay() external payable {
+    /*
+     *  ERC20 Functions
+     */
+
+    function allowance(address account, address spender) external override view returns (uint256) {
+        return allowances[account][spender];
+    }
+
+    function approve(address spender, uint256 amount) public virtual override returns (bool) {
+        _approve(_msgSender(), spender, amount);
+        return true;
+    }
+
+    function _approve(address owner, address spender, uint256 amount) internal virtual {
+        require(owner != address(0), "ERC20: approve from the zero address");
+        require(spender != address(0), "ERC20: approve to the zero address");
+
+        allowances[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }
+
+    function balanceOf(address account) public view virtual override returns (uint256) {
+        return balances[account];
+    }
+    
+    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+        _transfer(_msgSender(), recipient, amount);
+        return true;
+    }
+
+    function transferFrom(address sender, address recipient, uint256 amount) public virtual override returns (bool) {
+        _transfer(sender, recipient, amount);
+
+        uint256 currentAllowance = allowances[sender][_msgSender()];
+        require(currentAllowance >= amount, "ERC20: transfer amount exceeds allowance");
+        _approve(sender, _msgSender(), currentAllowance - amount);
+
+        return true;
+    }
+
+    function _transfer(address sender, address recipient, uint256 amount) internal virtual {
+        require(sender != address(0), "ERC20: transfer from the zero address");
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+
+        uint256 senderBalance = balances[sender];
+        require(senderBalance >= amount, "ERC20: transfer amount exceeds balance");
+        balances[sender] = senderBalance - amount;
+        balances[recipient] += amount;
+
+        emit Transfer(sender, recipient, amount);
+    }
+
+
+    /// @dev Ether deposit
+    function deposit() external payable {
         if (msg.value > 0) {
             /*
-             *  Если эфир закидывает стороннее лицо - токены распределяются в соответствии с балансами владельцев токенов
-             *  Если эфир закидывает владелец governance-токена, он приобретает токены себе по курсу: 1 LebedevToken = 1 Ether
+             *  If the ether was deposited by the owner of GovernanceToken, he gets tokens at the rate of 1 LebedevToken = 1 Ether
              */
             if (isOwner[msg.sender]) {
                 mint(msg.sender, msg.value);
                 emit EtherDepositFromParticipant(msg.sender, msg.value);
             }
+            /*
+             *  If the ether was deposited by the non-owner of GovernanceToken, all owners gets tokens in shares proportional to the balance of GovernanceToken
+             */
             else {
                 require(!isOwner[msg.sender]);
                 calculateTokens(msg.value);
@@ -62,7 +139,8 @@ abstract contract GovernanceToken is IERC20, Ownable {
         }
     }
 
-    /// @dev Расчет доли токенов в соответствии с балансами владельцев
+    /// @dev Calculation of the shares of tokens in proportion to the balances of the owners
+    /// @param _newEther The depositted Ether
     function calculateTokens(uint256 _newEther) internal {
         uint256 share;
 
@@ -81,14 +159,20 @@ abstract contract GovernanceToken is IERC20, Ownable {
         }
     }
 
-    /// @dev Прибавление токенов на баланс
+    /// @dev Adding tokens to the balance of the owner
+    /// @param _account Owner of the GovernanceToken
+    /// @param _tokens Value of tokens
     function mint(address _account, uint256 _tokens) internal {
-        require(_account != address(0));
-        require(isOwner[_account]);
-        leftTokens = leftTokens.sub(_tokens);
+        require(_account != address(0), "GovernanceToken::mint: mint to the zero address");
+        require(isOwner[_account], "GovernanceToken::mint: mint to non-owner");
+        totalSupply = totalSupply.add(_tokens);
         totalBalances = totalBalances.add(_tokens);
         balances[_account].add(_tokens);
         emit MintTokens(_account, _tokens);
+    }
+
+    function getOwners() public view returns(address[] memory) {
+        return owners;
     }
 
 }
