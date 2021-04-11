@@ -1,4 +1,4 @@
-// Lebedev Evgenii 2021 technopark-task-3
+// Lebedev Evgenii 2021 technopark-governance-token
 
 pragma solidity ^0.6.12;
 
@@ -33,7 +33,7 @@ contract GovernanceToken is IERC20, Ownable {
     mapping(address => mapping(address => uint256)) internal allowances;
 
     /// @dev Owners' balances of GovernanceToken
-    mapping(address => uint256) balances;
+    mapping(address => uint256) internal balances;
 
 
     /// @notice The standard EIP-20 transfer event
@@ -53,6 +53,7 @@ contract GovernanceToken is IERC20, Ownable {
 
     /// @notice An event thats emitted when non-owner deposits ether
     event EtherDepositFromNonParticipant(address sender, uint256 value);  // стороннее лицо кладет Ether в контракт 
+
 
     /// @dev Creating owners of GovernanceToken
     /// @param _owners Owners of GovernanceToken
@@ -91,11 +92,13 @@ contract GovernanceToken is IERC20, Ownable {
     }
     
     function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
+        require(isOwner[msg.sender]);
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
 
     function transferFrom(address sender, address recipient, uint256 amount) public virtual override returns (bool) {
+        require(isOwner[msg.sender]);
         _transfer(sender, recipient, amount);
 
         uint256 currentAllowance = allowances[sender][_msgSender()];
@@ -150,9 +153,10 @@ contract GovernanceToken is IERC20, Ownable {
                 mint(owners[i], share);
             }
         } else {
+            uint256 totalBalancesBeforeMint = totalBalances;
             for (uint i=0; i<owners.length; i++) {
                 if (balances[owners[i]] != 0) {
-                    share = balances[owners[i]].div(totalBalances).mul(_newEther);
+                    share = balances[owners[i]].mul(_newEther).div(totalBalancesBeforeMint);
                     mint(owners[i], share);
                 }
             }
@@ -167,12 +171,13 @@ contract GovernanceToken is IERC20, Ownable {
         require(isOwner[_account], "GovernanceToken::mint: mint to non-owner");
         totalSupply = totalSupply.add(_tokens);
         totalBalances = totalBalances.add(_tokens);
-        balances[_account].add(_tokens);
+        balances[_account] = balances[_account].add(_tokens);
         emit MintTokens(_account, _tokens);
     }
 
+    /// @dev Getting all owners of governance-token
     function getOwners() public view returns(address[] memory) {
         return owners;
     }
-
+    
 }
