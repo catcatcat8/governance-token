@@ -11,9 +11,12 @@ def test_add_new_owner_and_mint(accounts, token):
     assert token.isOwner(accounts[4]) == True
     assert token.balanceOf(accounts[4]) == 0
 
+    total_supply = token.totalSupply()
     new_owner_tokens = 1000
     token.deposit({'value': new_owner_tokens, 'from': accounts[4]})
+
     assert token.balanceOf(accounts[4]) == new_owner_tokens
+    assert token.totalSupply() == total_supply + new_owner_tokens
 
 
 def test_add_owner_not_msg_sender(accounts, token):

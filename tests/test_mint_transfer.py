@@ -2,21 +2,21 @@ import brownie
 
 def test_mint_and_transfer_tokens(token):
     owners = token.getOwners()
-    total_balances = token.totalBalances()
     total_supply = token.totalSupply()
     amount = 0.5*(10**18)  # 0.5 ether
     token.deposit({'value' : amount, 'from' : owners[0]})
 
-    assert token.balanceOf(owners[0]) == amount  # 1 token = 1 wei
-    assert token.totalBalances() == total_balances + amount
+    assert token.balanceOf(owners[0]) == amount  # 1 token = 1 ether
     assert token.totalSupply() == total_supply + amount
 
+    total_supply = total_supply + amount
     sender = token.getOwners()[1]
     send_tokens = 0.2*(10**18)
-    token.transfer(sender, 0.2*(10**18), {'from' : owners[0]})
+    token.transfer(sender, send_tokens, {'from' : owners[0]})
 
     assert token.balanceOf(owners[0]) == amount - send_tokens
     assert token.balanceOf(sender) == send_tokens
+    assert token.totalSupply() == total_supply  # total supply wasn't changed
 
 
 def test_mint_propotions_of_deposit_shares(accounts, token):
@@ -35,14 +35,14 @@ def test_mint_propotions_of_deposit_shares(accounts, token):
     owner_0_balance = token.balanceOf(owners[0])
     owner_1_balance = token.balanceOf(owners[1])
     owner_2_balance = token.balanceOf(owners[2])
-    total_balances = token.totalBalances()
+    total_supply = token.totalSupply()
 
     new_tokens = 500
     token.deposit({'value' : new_tokens, 'from' : accounts[0]})
 
-    assert token.balanceOf(owners[0]) == owner_0_balance + (owner_0_balance * new_tokens // total_balances)
-    assert token.balanceOf(owners[1]) == owner_1_balance + (owner_1_balance * new_tokens // total_balances)
-    assert token.balanceOf(owners[2]) == owner_2_balance + (owner_2_balance * new_tokens // total_balances)
+    assert token.balanceOf(owners[0]) == owner_0_balance + (owner_0_balance * new_tokens // total_supply)
+    assert token.balanceOf(owners[1]) == owner_1_balance + (owner_1_balance * new_tokens // total_supply)
+    assert token.balanceOf(owners[2]) == owner_2_balance + (owner_2_balance * new_tokens // total_supply)
 
 
 def test_insufficient_balance_transfer(token):

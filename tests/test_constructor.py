@@ -7,3 +7,4 @@ def test_owner_generated_with_zero_balance(token, idx):
 
     assert token.isOwner(owners[idx]) == True
     assert token.balanceOf(owners[idx]) == 0
+    assert token.totalSupply() == 0
