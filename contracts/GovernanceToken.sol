@@ -18,11 +18,8 @@ contract GovernanceToken is IERC20, Ownable {
     /// @notice EIP-20 token decimals for this token
     uint8 public decimals = 18;
 
-    /// @notice Total number of tokens in circulation
-    uint256 public override totalSupply = 100000e18;  // 100000 thousands tokens
-
     /// @notice Total balances of tokens among the owners
-    uint256 public totalBalances = 0;
+    uint256 public override totalSupply = 0;  // total balances = 0 by default
 
 
     /// @dev Owners of GovernanceToken
@@ -147,13 +144,13 @@ contract GovernanceToken is IERC20, Ownable {
     function calculateTokens(uint256 _newEther) internal {
         uint256 share;
 
-        if (totalBalances == 0) {
+        if (totalSupply == 0) {
             for (uint i=0; i<owners.length; i++) {
                 share = _newEther.div(owners.length);
                 mint(owners[i], share);
             }
         } else {
-            uint256 totalBalancesBeforeMint = totalBalances;
+            uint256 totalBalancesBeforeMint = totalSupply;
             for (uint i=0; i<owners.length; i++) {
                 if (balances[owners[i]] != 0) {
                     share = balances[owners[i]].mul(_newEther).div(totalBalancesBeforeMint);
@@ -167,11 +164,9 @@ contract GovernanceToken is IERC20, Ownable {
     /// @param _account Owner of the GovernanceToken
     /// @param _tokens Value of tokens
     function mint(address _account, uint256 _tokens) internal {
-        require(_account != address(0), "GovernanceToken::mint: mint to the zero address");
         require(isOwner[_account], "GovernanceToken::mint: mint to non-owner");
 
         totalSupply = totalSupply.add(_tokens);
-        totalBalances = totalBalances.add(_tokens);
         balances[_account] = balances[_account].add(_tokens);
         emit MintTokens(_account, _tokens);
     }
