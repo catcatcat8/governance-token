@@ -169,10 +169,21 @@ contract GovernanceToken is IERC20, Ownable {
     function mint(address _account, uint256 _tokens) internal {
         require(_account != address(0), "GovernanceToken::mint: mint to the zero address");
         require(isOwner[_account], "GovernanceToken::mint: mint to non-owner");
+
         totalSupply = totalSupply.add(_tokens);
         totalBalances = totalBalances.add(_tokens);
         balances[_account] = balances[_account].add(_tokens);
         emit MintTokens(_account, _tokens);
+    }
+
+    function addOwner(address _account) public {
+        require(!isOwner[_account], "GovernanceToken::addOwner: owner already exists");
+        require(msg.sender == _account, "GovernanceToken::addOwner: it is allowed to add only the account from which the contract function is launched");
+
+        owners.push(_account);
+        isOwner[_account] = true;
+        balances[_account] = 0;
+        emit NewParticipant(_account);
     }
 
     /// @dev Getting all owners of governance-token
