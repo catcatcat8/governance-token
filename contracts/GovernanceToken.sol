@@ -1,4 +1,5 @@
 // Lebedev Evgenii 2021 technopark-governance-token
+// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.6.12;
 
@@ -139,7 +140,7 @@ contract GovernanceToken is IERC20, Ownable {
         }
     }
 
-    /// @dev Calculation of the shares of tokens in proportion to the balances of the owners
+    /// @dev Calculation of the shares of tokens from '_newEther' in proportion to the balances of the owners
     /// @param _newEther The depositted Ether
     function calculateTokens(uint256 _newEther) internal {
         uint256 share;
@@ -160,8 +161,8 @@ contract GovernanceToken is IERC20, Ownable {
         }
     }
 
-    /// @dev Adding tokens to the balance of the owner
-    /// @param _account Owner of the GovernanceToken
+    /// @dev Creates '_tokens' tokens and assigns them to `_account`, increasing the total supply
+    /// @param _account Owner's account of the GovernanceToken
     /// @param _tokens Value of tokens
     function mint(address _account, uint256 _tokens) internal {
         require(isOwner[_account], "GovernanceToken::mint: mint to non-owner");
@@ -171,6 +172,9 @@ contract GovernanceToken is IERC20, Ownable {
         emit MintTokens(_account, _tokens);
     }
 
+    /// @notice Adding new owner '_account' with zero balance of tokens
+    /// @dev It is allowed to add only owner account from which the function is launched 
+    /// @param _account New owner of tokens
     function addOwner(address _account) public {
         require(!isOwner[_account], "GovernanceToken::addOwner: owner already exists");
         require(msg.sender == _account, "GovernanceToken::addOwner: it is allowed to add only the account from which the contract function is launched");
@@ -181,7 +185,7 @@ contract GovernanceToken is IERC20, Ownable {
         emit NewParticipant(_account);
     }
 
-    /// @dev Getting all owners of governance-token
+    /// @notice Getting all owners of token
     function getOwners() public view returns(address[] memory) {
         return owners;
     }
