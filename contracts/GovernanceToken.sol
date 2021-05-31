@@ -43,6 +43,9 @@ contract GovernanceToken is IERC20, Ownable {
     /// @notice An event thats emitted when owner receives tokens
     event MintTokens(address receiver, uint256 value);
 
+    /// @notice An event thats emitted when owner loses tokens
+    event BurnTokens(address owner, uint256 value);
+
     /// @notice An event of adding the new owner of tokens
     event NewParticipant(address new_participant);
 
@@ -51,6 +54,9 @@ contract GovernanceToken is IERC20, Ownable {
 
     /// @notice An event thats emitted when non-owner deposits ether
     event EtherDepositFromNonParticipant(address sender, uint256 value);  // стороннее лицо кладет Ether в контракт 
+
+    /// @notice An event of withdrawing ETH
+    event Withdraw(address owner ,uint256 amount);
 
 
     /// @dev Creating owners of GovernanceToken
@@ -170,6 +176,30 @@ contract GovernanceToken is IERC20, Ownable {
         totalSupply = totalSupply.add(_tokens);
         balances[_account] = balances[_account].add(_tokens);
         emit MintTokens(_account, _tokens);
+    }
+
+    /// @dev Destroys '_tokens' tokens from `_account`, decreasing the total supply
+    /// @param _account Owner's account of the GovernanceToken
+    /// @param _tokens Value of tokens
+    function burn(address _account, uint256 _tokens) internal {
+        require(isOwner[_account], "GovernanceToken::burn: burn from non-owner");
+
+        totalSupply = totalSupply.sub(_tokens);
+        balances[_account] = balances[_account].sub(_tokens);
+        emit BurnTokens(_account, _tokens);
+    }
+
+    /**
+     * @notice Withdrawing ether on your account
+     * @dev Transfer '_amount' tokens to ether on account of msg.sender
+     * @param _amount Amount of withdrawing tokens from account
+     */
+    function withdraw(uint256 _amount) external {
+        require(balances[msg.sender] >= _amount, "Lottery::withdraw: you don't have enough tokens to withdraw");
+        
+        msg.sender.transfer(_amount);
+        emit Withdraw(msg.sender, _amount);
+        burn(msg.sender, _amount);
     }
 
     /// @notice Adding new owner '_account' with zero balance of tokens
