@@ -203,11 +203,10 @@ contract GovernanceToken is IERC20, Ownable {
     }
 
     /// @notice Adding new owner '_account' with zero balance of tokens
-    /// @dev It is allowed to add only owner account from which the function is launched 
+    /// @dev Administrative function of adding owner by contract owner
     /// @param _account New owner of tokens
-    function addOwner(address _account) public {
+    function addOwner(address _account) public onlyOwner() {
         require(!isOwner[_account], "GovernanceToken::addOwner: owner already exists");
-        require(msg.sender == _account, "GovernanceToken::addOwner: it is allowed to add only the account from which the contract function is launched");
 
         owners.push(_account);
         isOwner[_account] = true;

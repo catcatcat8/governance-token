@@ -3,7 +3,7 @@ import brownie
 def test_add_new_owner_and_mint(accounts, token):
     owners = token.getOwners()
     owners_number_before_adding = len(owners)
-    token.addOwner(accounts[4], {'from': accounts[4]})
+    token.addOwner(accounts[4], {'from': accounts[0]})
     owners = token.getOwners()
     owners_number_after_adding = len(owners)
 
@@ -19,12 +19,12 @@ def test_add_new_owner_and_mint(accounts, token):
     assert token.totalSupply() == total_supply + new_owner_tokens
 
 
-def test_add_owner_not_msg_sender(accounts, token):
+def test_add_owner_not_contract_owner(accounts, token):
     with brownie.reverts():
         token.addOwner(accounts[4], {'from': accounts[5]})
 
 
-def test_add_already_existing_owner(token):
+def test_add_already_existing_owner(accounts, token):
     owners = token.getOwners()
     with brownie.reverts():
-        token.addOwner(owners[0], {'from': owners[0]})
+        token.addOwner(owners[0], {'from': accounts[0]})
